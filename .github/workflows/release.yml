@@ -31,7 +31,7 @@ jobs:
 
       - name: Build executable
         shell: msys2 {0}
-        run: gcc -o todo.exe src/main.c src/storage.c src/task.c src/utils.c -mwindows -lcomctl32
+        run: gcc -I include -o todo.exe src/main.c src/storage.c src/task.c src/utils.c -mwindows -lcomctl32
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
