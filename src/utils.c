@@ -47,13 +47,13 @@ bool utils_strings_equal_case_insensitive(const char *str1, const char *str2)
         return str1 == str2;
 
     while (*str1 && *str2) {
-        if (tolower(*str1) != tolower(*str2))
+        if (tolower((unsigned char)*str1) != tolower((unsigned char)*str2))
             return false;
         str1++;
         str2++;
     }
-    
-    return *str1 == *str2;
+
+    return (unsigned char)*str1 == (unsigned char)*str2;
 }
 
 bool utils_is_duplicate_task(TaskList *list, const char *text)
