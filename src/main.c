@@ -489,7 +489,24 @@ void AddTask(void)
     }
     else
     {
-        MessageBox(NULL, "Failed to add task", "Error", MB_OK | MB_ICONERROR);
+        // Check if it's a duplicate
+        Task *existing = g_taskList->head;
+        bool is_duplicate = false;
+        while (existing) {
+            if (strcmp(existing->text, text) == 0) {
+                is_duplicate = true;
+                break;
+            }
+            existing = existing->next;
+        }
+        
+        if (is_duplicate) {
+            MessageBox(NULL, "Task already exists! Please enter a unique task name.", "Duplicate Task", MB_OK | MB_ICONWARNING);
+        } else if (g_taskList->count >= MAX_TASKS) {
+            MessageBox(NULL, "Maximum number of tasks reached!", "Task Limit", MB_OK | MB_ICONWARNING);
+        } else {
+            MessageBox(NULL, "Failed to add task", "Error", MB_OK | MB_ICONERROR);
+        }
     }
 }
 

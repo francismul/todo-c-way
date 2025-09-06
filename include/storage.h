@@ -14,5 +14,6 @@ typedef struct {
 
 bool storage_save(TaskList *list, const char *filename);
 bool storage_load(TaskList *list, const char *filename);
+void storage_create_backup(const char *filename);
 
 #endif

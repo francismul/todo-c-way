@@ -57,15 +57,35 @@ bool storage_load(TaskList *list, const char *filename)
     int count;
     if (fread(&count, sizeof(int), 1, file) != 1) {
         fclose(file);
+        // Try to recover by creating backup and clearing
+        storage_create_backup(filename);
+        return false;
+    }
+
+    // Validate count to prevent buffer overflow
+    if (count < 0 || count > MAX_TASKS) {
+        fclose(file);
+        storage_create_backup(filename);
         return false;
     }
 
     int max_id = 0;
+    int loaded_count = 0;
+    
     for (int i = 0; i < count; i++) {
         TaskData data;
         if (fread(&data, sizeof(TaskData), 1, file) != 1) {
-            fclose(file);
-            return false;
+            // Partial read - try to recover what we can
+            break;
+        }
+
+        // Validate data integrity
+        if (data.id < 0 || data.id > INT_MAX / 2) {
+            continue; // Skip invalid task
+        }
+        
+        if (strlen(data.text) >= MAX_TASK_TEXT) {
+            continue; // Skip invalid text
         }
 
         Task *task = malloc(sizeof(Task));
@@ -84,6 +104,7 @@ bool storage_load(TaskList *list, const char *filename)
         task->next = list->head;
         list->head = task;
         list->count++;
+        loaded_count++;
 
         if (data.id > max_id)
             max_id = data.id;
@@ -91,5 +112,42 @@ bool storage_load(TaskList *list, const char *filename)
 
     list->next_id = max_id + 1;
     fclose(file);
+    
+    // If we loaded fewer tasks than expected, create backup
+    if (loaded_count < count) {
+        storage_create_backup(filename);
+    }
+    
     return true;
+}
+
+// Create backup of corrupted file
+void storage_create_backup(const char *filename)
+{
+    char backup_filename[256];
+    time_t now = time(NULL);
+    struct tm *tm = localtime(&now);
+    
+    snprintf(backup_filename, sizeof(backup_filename), "%s.backup_%04d%02d%02d_%02d%02d%02d", 
+             filename, tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
+             tm->tm_hour, tm->tm_min, tm->tm_sec);
+    
+    // Try to copy the file
+    FILE *src = fopen(filename, "rb");
+    if (!src) return;
+    
+    FILE *dst = fopen(backup_filename, "wb");
+    if (!dst) {
+        fclose(src);
+        return;
+    }
+    
+    char buffer[1024];
+    size_t bytes;
+    while ((bytes = fread(buffer, 1, sizeof(buffer), src)) > 0) {
+        fwrite(buffer, 1, bytes, dst);
+    }
+    
+    fclose(src);
+    fclose(dst);
 }

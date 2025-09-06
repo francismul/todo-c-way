@@ -53,6 +53,15 @@ bool task_list_add(TaskList *list, const char *text, Priority priority, time_t d
     if (list->count >= MAX_TASKS)
         return false;
 
+    // Check for duplicates
+    Task *current = list->head;
+    while (current) {
+        if (strcmp(current->text, text) == 0) {
+            return false; // Duplicate found
+        }
+        current = current->next;
+    }
+
     Task *new_task = task_create(text, priority, due_date);
     if (!new_task)
         return false;
