@@ -1,4 +1,4 @@
-#include "task.h"
+#include "../include/task.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,7 +23,7 @@ void task_list_destroy(TaskList *list)
     free(list);
 }
 
-Task *task_create(const char *text)
+Task *task_create(const char *text, Priority priority, time_t due_date)
 {
     if (!text || strlen(text) == 0 || strlen(text) >= MAX_TASK_TEXT)
     {
@@ -34,23 +34,26 @@ Task *task_create(const char *text)
     if (!task)
         return NULL;
 
+    task->id = 0; // Will be set by list
     strncpy(task->text, text, MAX_TASK_TEXT - 1);
     task->text[MAX_TASK_TEXT - 1] = '\0';
     task->completed = false;
     task->created = time(NULL);
+    task->priority = priority;
+    task->due_date = due_date;
     task->next = NULL;
 
     return task;
 }
 
-bool task_list_add(TaskList *list, const char *text)
+bool task_list_add(TaskList *list, const char *text, Priority priority, time_t due_date)
 {
     if (!list || !text)
         return false;
     if (list->count >= MAX_TASKS)
         return false;
 
-    Task *new_task = task_create(text);
+    Task *new_task = task_create(text, priority, due_date);
     if (!new_task)
         return false;
 
@@ -153,4 +156,173 @@ void task_list_clear(TaskList *list)
 
     list->head = NULL;
     list->count = 0;
+}
+
+// Filtering functions
+TaskList *task_list_filter_pending(TaskList *list)
+{
+    if (!list)
+        return NULL;
+
+    TaskList *filtered = task_list_create();
+    if (!filtered)
+        return NULL;
+
+    Task *current = list->head;
+    while (current)
+    {
+        if (!current->completed)
+        {
+            Task *copy = task_create(current->text, current->priority, current->due_date);
+            if (copy)
+            {
+                copy->id = current->id;
+                copy->completed = current->completed;
+                copy->created = current->created;
+                copy->next = filtered->head;
+                filtered->head = copy;
+                filtered->count++;
+            }
+        }
+        current = current->next;
+    }
+
+    return filtered;
+}
+
+TaskList *task_list_filter_completed(TaskList *list)
+{
+    if (!list)
+        return NULL;
+
+    TaskList *filtered = task_list_create();
+    if (!filtered)
+        return NULL;
+
+    Task *current = list->head;
+    while (current)
+    {
+        if (current->completed)
+        {
+            Task *copy = task_create(current->text, current->priority, current->due_date);
+            if (copy)
+            {
+                copy->id = current->id;
+                copy->completed = current->completed;
+                copy->created = current->created;
+                copy->next = filtered->head;
+                filtered->head = copy;
+                filtered->count++;
+            }
+        }
+        current = current->next;
+    }
+
+    return filtered;
+}
+
+// Sorting functions (bubble sort on linked list)
+void task_list_sort_by_priority(TaskList *list)
+{
+    if (!list || list->count < 2)
+        return;
+
+    bool swapped;
+    do {
+        swapped = false;
+        Task *current = list->head;
+        Task *prev = NULL;
+
+        while (current && current->next)
+        {
+            if (current->priority < current->next->priority)
+            {
+                // Swap nodes
+                Task *temp = current->next;
+                current->next = temp->next;
+                temp->next = current;
+                if (prev)
+                    prev->next = temp;
+                else
+                    list->head = temp;
+                prev = temp;
+                swapped = true;
+            }
+            else
+            {
+                prev = current;
+                current = current->next;
+            }
+        }
+    } while (swapped);
+}
+
+void task_list_sort_by_due_date(TaskList *list)
+{
+    if (!list || list->count < 2)
+        return;
+
+    bool swapped;
+    do {
+        swapped = false;
+        Task *current = list->head;
+        Task *prev = NULL;
+
+        while (current && current->next)
+        {
+            if (current->due_date > current->next->due_date)
+            {
+                // Swap nodes
+                Task *temp = current->next;
+                current->next = temp->next;
+                temp->next = current;
+                if (prev)
+                    prev->next = temp;
+                else
+                    list->head = temp;
+                prev = temp;
+                swapped = true;
+            }
+            else
+            {
+                prev = current;
+                current = current->next;
+            }
+        }
+    } while (swapped);
+}
+
+void task_list_sort_by_title(TaskList *list)
+{
+    if (!list || list->count < 2)
+        return;
+
+    bool swapped;
+    do {
+        swapped = false;
+        Task *current = list->head;
+        Task *prev = NULL;
+
+        while (current && current->next)
+        {
+            if (strcmp(current->text, current->next->text) > 0)
+            {
+                // Swap nodes
+                Task *temp = current->next;
+                current->next = temp->next;
+                temp->next = current;
+                if (prev)
+                    prev->next = temp;
+                else
+                    list->head = temp;
+                prev = temp;
+                swapped = true;
+            }
+            else
+            {
+                prev = current;
+                current = current->next;
+            }
+        }
+    } while (swapped);
 }
