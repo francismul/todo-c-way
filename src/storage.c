@@ -84,8 +84,9 @@ bool storage_load(TaskList *list, const char *filename)
             continue; // Skip invalid task
         }
         
-        if (strlen(data.text) >= MAX_TASK_TEXT) {
-            continue; // Skip invalid text
+        // Bounded validation to avoid reading past corrupt buffers
+        if (!memchr(data.text, '\0', MAX_TASK_TEXT)) {
+            continue; // No terminator within bounds -> invalid/corrupt
         }
 
         Task *task = malloc(sizeof(Task));
