@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
+#include <errno.h>
 
 bool storage_save(TaskList *list, const char *filename)
 {
@@ -127,7 +129,18 @@ void storage_create_backup(const char *filename)
 {
     char backup_filename[256];
     time_t now = time(NULL);
-    struct tm *tm = localtime(&now);
+    struct tm tm_struct;
+    struct tm *tm = NULL;
+    
+    // Use thread-safe localtime_s on Windows
+    errno_t err = localtime_s(&tm_struct, &now);
+    if (err == 0) {
+        tm = &tm_struct;
+    } else {
+        // Fallback: use current time components if localtime fails
+        tm = gmtime(&now);  // GMT fallback, not ideal but better than crash
+        if (!tm) return;    // Complete failure
+    }
     
     snprintf(backup_filename, sizeof(backup_filename), "%s.backup_%04d%02d%02d_%02d%02d%02d", 
              filename, tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
@@ -146,7 +159,10 @@ void storage_create_backup(const char *filename)
     char buffer[1024];
     size_t bytes;
     while ((bytes = fread(buffer, 1, sizeof(buffer), src)) > 0) {
-        fwrite(buffer, 1, bytes, dst);
+        if (fwrite(buffer, 1, bytes, dst) != bytes) {
+            // Write failed, abort backup
+            break;
+        }
     }
     
     fclose(src);

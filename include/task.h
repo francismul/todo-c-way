@@ -13,6 +13,13 @@ typedef enum {
     PRIORITY_HIGH = 3
 } Priority;
 
+typedef enum {
+    TASK_ADD_OK = 0,
+    TASK_ADD_DUPLICATE = 1,
+    TASK_ADD_FULL = 2,
+    TASK_ADD_INVALID = 3
+} TaskAddResult;
+
 typedef struct Task
 {
     int id;
@@ -34,7 +41,7 @@ typedef struct TaskList
 TaskList *task_list_create(void);
 void task_list_destroy(TaskList *list);
 Task *task_create(const char *text, Priority priority, time_t due_date);
-bool task_list_add(TaskList *list, const char *text, Priority priority, time_t due_date);
+TaskAddResult task_list_add(TaskList *list, const char *text, Priority priority, time_t due_date);
 bool task_list_remove(TaskList *list, int id);
 Task *task_list_find(TaskList *list, int id);
 bool task_list_toggle_complete(TaskList *list, int id);

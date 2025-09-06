@@ -1,4 +1,5 @@
 #include "../include/task.h"
+#include "../include/utils.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,25 +47,21 @@ Task *task_create(const char *text, Priority priority, time_t due_date)
     return task;
 }
 
-bool task_list_add(TaskList *list, const char *text, Priority priority, time_t due_date)
+TaskAddResult task_list_add(TaskList *list, const char *text, Priority priority, time_t due_date)
 {
     if (!list || !text)
-        return false;
+        return TASK_ADD_INVALID;
     if (list->count >= MAX_TASKS)
-        return false;
+        return TASK_ADD_FULL;
 
-    // Check for duplicates
-    Task *current = list->head;
-    while (current) {
-        if (strcmp(current->text, text) == 0) {
-            return false; // Duplicate found
-        }
-        current = current->next;
+    // Check for duplicates using centralized logic
+    if (utils_is_duplicate_task(list, text)) {
+        return TASK_ADD_DUPLICATE; // Duplicate found
     }
 
     Task *new_task = task_create(text, priority, due_date);
     if (!new_task)
-        return false;
+        return TASK_ADD_INVALID;
 
     new_task->id = list->next_id++;
 
@@ -72,7 +69,7 @@ bool task_list_add(TaskList *list, const char *text, Priority priority, time_t d
     list->head = new_task;
     list->count++;
 
-    return true;
+    return TASK_ADD_OK;
 }
 
 bool task_list_remove(TaskList *list, int id)
@@ -144,6 +141,28 @@ bool task_list_edit(TaskList *list, int id, const char *new_text)
     Task *task = task_list_find(list, id);
     if (!task)
         return false;
+
+    // Check for duplicates (excluding the current task)
+    char trimmed_new_text[MAX_TASK_TEXT];
+    strncpy(trimmed_new_text, new_text, MAX_TASK_TEXT - 1);
+    trimmed_new_text[MAX_TASK_TEXT - 1] = '\0';
+    utils_trim_string(trimmed_new_text);
+
+    Task *current = list->head;
+    while (current) {
+        if (current != task) {
+            // Create a trimmed copy of existing task text
+            char trimmed_existing[MAX_TASK_TEXT];
+            strncpy(trimmed_existing, current->text, MAX_TASK_TEXT - 1);
+            trimmed_existing[MAX_TASK_TEXT - 1] = '\0';
+            utils_trim_string(trimmed_existing);
+
+            if (utils_strings_equal_case_insensitive(trimmed_new_text, trimmed_existing)) {
+                return false; // Duplicate found
+            }
+        }
+        current = current->next;
+    }
 
     strncpy(task->text, new_text, MAX_TASK_TEXT - 1);
     task->text[MAX_TASK_TEXT - 1] = '\0';

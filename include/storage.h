@@ -2,6 +2,8 @@
 #define STORAGE_H
 
 #include "task.h"
+#include <stdbool.h>
+#include <time.h>
 
 typedef struct {
     int id;
