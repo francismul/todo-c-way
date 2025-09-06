@@ -2,6 +2,8 @@
 #define STORAGE_H
 
 #include "task.h"
+#include <stdbool.h>
+#include <time.h>
 
 typedef struct {
     int id;
@@ -14,5 +16,6 @@ typedef struct {
 
 bool storage_save(TaskList *list, const char *filename);
 bool storage_load(TaskList *list, const char *filename);
+void storage_create_backup(const char *filename);
 
 #endif

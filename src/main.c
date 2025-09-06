@@ -1,6 +1,7 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <stdio.h>
+#include <errno.h>
 #include "../include/task.h"
 #include "../include/storage.h"
 #include "../include/utils.h"
@@ -216,10 +217,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
         // Set default due date (1 day from now)
         time_t default_due = time(NULL) + 86400;
-        struct tm *tm = localtime(&default_due);
-        char default_due_str[20];
-        strftime(default_due_str, sizeof(default_due_str), "%Y-%m-%d %H:%M", tm);
-        SetWindowText(g_hEditDueDate, default_due_str);
+        struct tm tm_struct;
+        struct tm *tm = NULL;
+        errno_t err = localtime_s(&tm_struct, &default_due);
+        if (err == 0) {
+            tm = &tm_struct;
+        } else {
+            // Fallback
+            tm = gmtime(&default_due);
+        }
+        if (tm) {
+            char default_due_str[20];
+            strftime(default_due_str, sizeof(default_due_str), "%Y-%m-%d %H:%M", tm);
+            SetWindowText(g_hEditDueDate, default_due_str);
+        }
 
         // Filter buttons
         CreateWindow(
@@ -431,8 +442,12 @@ void RefreshListView(void)
         // Due date
         char due_str[32];
         if (current->due_date > 0) {
-            struct tm *due_tm = localtime(&current->due_date);
-            strftime(due_str, sizeof(due_str), "%Y-%m-%d %H:%M", due_tm);
+            struct tm due_tm;
+            if (localtime_s(&due_tm, &current->due_date) == 0) {
+                strftime(due_str, sizeof(due_str), "%Y-%m-%d %H:%M", &due_tm);
+            } else {
+                strcpy(due_str, "Invalid date");
+            }
         } else {
             strcpy(due_str, "No due date");
         }
@@ -481,15 +496,27 @@ void AddTask(void)
         }
     }
 
-    if (task_list_add(g_taskList, text, priority, due_date))
-    {
-        SetWindowText(g_hEditTask, "");
-        RefreshListView();
-        storage_save(g_taskList, SAVE_FILE);
-    }
-    else
-    {
-        MessageBox(NULL, "Failed to add task", "Error", MB_OK | MB_ICONERROR);
+    TaskAddResult result = task_list_add(g_taskList, text, priority, due_date);
+    
+    switch (result) {
+        case TASK_ADD_OK:
+            SetWindowText(g_hEditTask, "");
+            RefreshListView();
+            storage_save(g_taskList, SAVE_FILE);
+            break;
+            
+        case TASK_ADD_DUPLICATE:
+            MessageBox(NULL, "Task already exists! Please enter a unique task name.", "Duplicate Task", MB_OK | MB_ICONWARNING);
+            break;
+            
+        case TASK_ADD_FULL:
+            MessageBox(NULL, "Maximum number of tasks reached!", "Task Limit", MB_OK | MB_ICONWARNING);
+            break;
+            
+        case TASK_ADD_INVALID:
+        default:
+            MessageBox(NULL, "Failed to add task", "Error", MB_OK | MB_ICONERROR);
+            break;
     }
 }
 
@@ -651,8 +678,12 @@ void RefreshFilteredListView(void)
         // Due date
         char due_str[32];
         if (current->due_date > 0) {
-            struct tm *due_tm = localtime(&current->due_date);
-            strftime(due_str, sizeof(due_str), "%Y-%m-%d %H:%M", due_tm);
+            struct tm due_tm;
+            if (localtime_s(&due_tm, &current->due_date) == 0) {
+                strftime(due_str, sizeof(due_str), "%Y-%m-%d %H:%M", &due_tm);
+            } else {
+                strcpy(due_str, "Invalid date");
+            }
         } else {
             strcpy(due_str, "No due date");
         }
